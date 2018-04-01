@@ -39,6 +39,15 @@ def affine_forward(x, w, b):
 
   # Copy and paste your code from HW #3
 
+  x_shape = x.shape
+
+  x = x.reshape((x.shape[0],-1)) #N*D
+
+  # print(x.shape)
+  out = x.dot(w)  + b.reshape((1,-1)) # N*M
+
+  x = x.reshape(x_shape)
+
   # ================================================================ #
   # END YOUR CODE HERE
   # ================================================================ #
@@ -72,6 +81,12 @@ def affine_backward(dout, cache):
 
   # Copy and paste your code from HW #3
 
+  x_shape = x.shape
+  dw = x.reshape((x.shape[0],-1)).T.dot(dout) # D M
+  dx = dout.dot(w.T).reshape(x_shape) # N D
+
+  db = np.sum(dout.T,axis = 1, keepdims = True).T # M*1
+
   # ================================================================ #
   # END YOUR CODE HERE
   # ================================================================ #
@@ -95,7 +110,8 @@ def relu_forward(x):
   # ================================================================ #
 
   # Copy and paste your code from HW #3
-    
+  out =  np.maximum(0,x)
+
   # ================================================================ #
   # END YOUR CODE HERE
   # ================================================================ #
@@ -123,6 +139,7 @@ def relu_backward(dout, cache):
   # ================================================================ #
 
   # Copy and paste your code from HW #3
+  dx = (x>0)*(dout)
     
   # ================================================================ #
   # END YOUR CODE HERE
@@ -190,7 +207,14 @@ def batchnorm_forward(x, gamma, beta, bn_param):
     #         the 'cache' variable.
     # ================================================================ #
 
-    pass
+    mean =np.mean(x,axis=0)
+    var = np.var(x,axis=0)
+    out = (gamma*(x-mean)*1./np.sqrt(var+eps)) +beta
+
+    running_mean = momentum * running_mean + (1 - momentum) * np.mean(x,axis = 0)
+    running_var = momentum * running_var + (1 - momentum) * np.var(x,axis = 0)
+
+    cache = (mean, var ,x ,gamma, beta,bn_param)
 
     # ================================================================ #
     # END YOUR CODE HERE
@@ -205,7 +229,7 @@ def batchnorm_forward(x, gamma, beta, bn_param):
     #   Store the output as 'out'.
     # ================================================================ #
 
-    pass
+    out = gamma*(x-running_mean)/np.sqrt(running_var+eps) +beta
 
     # ================================================================ #
     # END YOUR CODE HERE
@@ -243,6 +267,27 @@ def batchnorm_backward(dout, cache):
   # YOUR CODE HERE:
   #   Implement the batchnorm backward pass, calculating dx, dgamma, and dbeta.
   # ================================================================ #
+  mean, var ,x ,gamma, beta,bn_param = cache
+  eps = bn_param.get('eps', 1e-5)
+  N, D = dout.shape
+
+  # notation and naming following the note
+  e = var + eps
+  c = np.sqrt(e)
+  b = 1/c
+  a = x- mean
+  xhat = a*b
+
+
+  dbeta = np.sum(dout, axis=0)
+  dgamma = np.sum(xhat*dout, axis=0)
+
+  dxhat = dout * gamma
+  dmean = -1/np.sqrt(var+eps) * np.sum(dxhat,axis=0)
+  dvar = np.sum(-1/2* 1/(var+eps)**1.5 * (x-mean) *dxhat, axis=0)
+
+  dx = 1/np.sqrt(var+eps) * dxhat + 2*(x-mean)/N * dvar + 1/N*dmean
+
 
   # ================================================================ #
   # END YOUR CODE HERE
@@ -284,7 +329,9 @@ def dropout_forward(x, dropout_param):
     #   dropout mask as the variable mask.
     # ================================================================ #
 
-    pass
+    mask = (np.random.rand(*x.shape)< p)/p
+    out = x*mask
+
     # ================================================================ #
     # END YOUR CODE HERE
     # ================================================================ #
@@ -296,7 +343,7 @@ def dropout_forward(x, dropout_param):
     #   Implement the inverted dropout forward pass during test time.
     # ================================================================ #
 
-    pass
+    out = x
     # ================================================================ #
     # END YOUR CODE HERE
     # ================================================================ #
@@ -323,7 +370,7 @@ def dropout_backward(dout, cache):
     # YOUR CODE HERE:
     #   Implement the inverted dropout backward pass during training time.
     # ================================================================ #
-    pass
+    dx = dout * mask
     # ================================================================ #
     # END YOUR CODE HERE
     # ================================================================ #
@@ -332,7 +379,7 @@ def dropout_backward(dout, cache):
     # YOUR CODE HERE:
     #   Implement the inverted dropout backward pass during test time.
     # ================================================================ #
-    pass
+    dx = dout
     # ================================================================ #
     # END YOUR CODE HERE
     # ================================================================ #
@@ -388,3 +435,38 @@ def softmax_loss(x, y):
   dx[np.arange(N), y] -= 1
   dx /= N
   return loss, dx
+
+def affine_batchnorm_relu_forward(x, w, b, gamma, beta, bn_param):
+    """
+    Convenience layer that perorms an affine transform followed by a ReLU
+    Inputs:
+    - x: Input to the affine layer
+    - w, b: Weights for the affine layer
+    - gamma, beta : Weight for the batch norm regularization
+    - bn_params : Contain variable use to batch norml, running_mean and var
+    Returns a tuple of:
+    - out: Output from the ReLU
+    - cache: Object to give to the backward pass
+    """
+
+    h, h_cache = affine_forward(x, w, b)
+    hnorm, hnorm_cache = batchnorm_forward(h, gamma, beta, bn_param)
+    hnormrelu, relu_cache = relu_forward(hnorm)
+    cache = (h_cache, hnorm_cache, relu_cache)
+
+    return hnormrelu, cache
+
+def affine_batchnorm_relu_backward(dout, cache):
+    """
+    Backward pass for the affine-relu convenience layer
+    """
+    h_cache, hnorm_cache, relu_cache = cache
+
+    dhnormrelu = relu_backward(dout, relu_cache)
+    dhnorm, dgamma, dbeta = batchnorm_backward(dhnormrelu, hnorm_cache)
+    dx, dw, db = affine_backward(dhnorm, h_cache)
+
+    return dx, dw, db, dgamma, dbeta
+
+
+

@@ -76,7 +76,8 @@ def sgd_momentum(w, dw, config=None):
   #   as next_w, and store the updated velocity as v.
   # ================================================================ #
 
-  pass
+  v = config['momentum'] * v - config['learning_rate']* dw
+  next_w = w + v
 
   # ================================================================ #
   # END YOUR CODE HERE
@@ -107,7 +108,11 @@ def sgd_nesterov_momentum(w, dw, config=None):
   #   Implement the momentum update formula.  Return the updated weights
   #   as next_w, and store the updated velocity as v.
   # ================================================================ #
-  pass
+  v_old = v
+
+  v = config['momentum'] * v - config['learning_rate']* dw
+
+  next_w = w + v + config['momentum'] *(v-v_old)
 
   # ================================================================ #
   # END YOUR CODE HERE
@@ -145,7 +150,10 @@ def rmsprop(w, dw, config=None):
   #   config['a'] corresponds to "a" in the lecture notes.
   # ================================================================ #
 
-  pass
+  a = config['decay_rate'] * config['a'] + (1-config['decay_rate'])* dw*dw
+  next_w = w - config['learning_rate'] /(np.power(a,0.5)+config['epsilon'])*dw
+
+  config['a']= a
   # ================================================================ #
   # END YOUR CODE HERE
   # ================================================================ #
@@ -185,9 +193,22 @@ def adam(w, dw, config=None):
   #   moment gradients, and in config['v'] the moving average of the
   #   first moments.  Finally, store in config['t'] the increasing time.
   # ================================================================ #
+  config['t'] += 1
 
-  pass
-    
+  t = config['t']
+  v = config['v'] * config['beta1'] + (1-config['beta1'])*dw
+  a = config['a'] * config['beta2'] + (1-config['beta2'])*dw*dw
+
+  config['a'] = a
+  config['v'] = v
+
+
+  v_ = v/(1-config['beta1']**t)
+  a_ = a/(1-config['beta2']**t)
+
+  next_w = w - config['learning_rate']*v_/(np.sqrt(a_)+ config['epsilon'])
+
+
   # ================================================================ #
   # END YOUR CODE HERE
   # ================================================================ #
