@@ -1,0 +1,8 @@
+readme
+
+-执行代码都在jupyter notebook 里
+-结构和util 代码在nndl 中  用了一些作业里现成的code 
+
+-Model 没有保存但是还是可以很轻松的上97% 需要将mnist dataset 放入.\mnistDataset文件夹进行从新训练
+
+-默认读取一个folder图片是 .\imageData  请改jupyter notebook 里面的地址 
